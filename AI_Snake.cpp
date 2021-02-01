@@ -4,7 +4,7 @@
 #include <windows.h>
 
 #define vDistance 5
-#define maxSnakeSize 20
+#define maxSnakeSize 100
 #define DefNOfTypes 2
 #define DefNOfConnections 4
 #define reactionsCount 3
@@ -20,15 +20,17 @@ int DefReactions[DefNOfTypes][reactionsCount] = {
 	{ eat, eat, eat}, // 1 - eat
 	{ border, body, border} // -1 - border, -2 - head, -3 - body
 };
+
 /*
-----------------------> y
+(0, 0_-------------> y
 |
 |
 |
 |
 x
 */
-//up, down, left, right
+
+                        //up, down, left, right
 int dx[DefNOfConnections] = { -1, 1, 0, 0 };
 int dy[DefNOfConnections] = { 0, 0, -1, 1 };
 
@@ -53,9 +55,8 @@ struct NEURON {
 			connections[i] = new int[nOfConnections];
 			reactions[i] = new int[reactionsCount];
 
-			for (int j = 0; j < reactionsCount; j++) {
-				reactions[i][j] = DefReactions[i][j];
-			}
+			
+			reactions[i] = DefReactions[i];
 
 			for (int j = 0; j < nOfConnections; j++) {
 				connections[i][j] = 0;
@@ -90,7 +91,7 @@ struct BRAIN {
 
 	}
 
-	BRAIN(int _size, int _nOfTypes, int _nOfConnections) {
+	void init (int _size, int _nOfTypes, int _nOfConnections) {
 		size = _size;
 		nOfTypes = _nOfTypes;
 		nOfConnections = _nOfConnections;
@@ -134,22 +135,25 @@ struct MAP {
 	}
 };
 
-MAP n(vDistance * 2 + 1);
-
 struct SNAKE {
 	BRAIN brain;
 	int bSize;
 	int bNOfTypes;
 	int bNOfConnections;
 	int sSize;
-	COOR coords[maxSnakeSize];
+	int mSize;
+	COOR* coords;
 
-	SNAKE(int _bSize, int _nOfTypes, int _nOfConnections) {
+	SNAKE(int _bSize, int _nOfTypes, int _nOfConnections, int _mSize) {
+		mSize = _mSize;
 		sSize = 1;
+
+		coords = new COOR[mSize];
+
 		bSize = _bSize;
 		bNOfTypes = _nOfTypes;
 		bNOfConnections = _nOfConnections;
-		BRAIN brain(bSize, bNOfTypes, bNOfConnections);
+		brain.init(bSize, bNOfTypes, bNOfConnections);
 	}
 };
 
@@ -225,8 +229,6 @@ void printMap(MAP map) {
 }
 
 COOR convertSnakeToMap(MAP map, SNAKE snake, COOR coord) {
-	//snake.coords[0].x, snake.coords[0].x - map
-	//snake.size - 1 / 2 , snake.size - 1 / 2 - snake
 
 	COOR mCoord(snake.coords[0].x + coord.x - (snake.bSize - 1) / 2, snake.coords[0].y + coord.y - (snake.bSize - 1) / 2);
 
@@ -244,14 +246,6 @@ bool isThere(int* arr, int n, int size) {
 
 int getIndexMax(int* arr, int size) {
 	int maxI = 0;
-
-	//cout << size << endl;
-
-	/*for (int i = 0; i < size; i++) {
-		cout << arr[i] << " ";
-	}
-	cout << endl;*/
-
 
 	for (int i = 1; i < size; i++) {
 		if (arr[i] > arr[maxI]) {
@@ -320,25 +314,14 @@ int checkNeuronActivation(MAP map, SNAKE snake, COOR coord) {
 	return -1;
 }
 
-/**int* addArrays(int a[], int b[], int size) {
-
-	for (int i = 0; i < size; i++) {
-		cout << a[i] << " ";
-		cout << endl;
-	}
-
-	for (int i = 0; i < size; i++) {
-		cout << b[i] << " ";
-		cout << endl;
-	}
-
+int* addArrays(int a[], int b[], int size) {
 
 	for (int i = 0; i < size; i++) {
 		a[i] += b[i];
 	}
 
 	return a;
-}*/
+}
 
 int getMaxConnections(MAP map, SNAKE snake) {
 	int* cSum = new int[DefNOfConnections];
@@ -350,8 +333,7 @@ int getMaxConnections(MAP map, SNAKE snake) {
 
 	for (int x = 0; x < snake.bSize; x++) {
 		for (int y = 0; y < snake.bSize; y++) {
-			//тут було написано if(x != y && y != (snake.bSize - 1) / 2) , але це неправильно
-			if (!(y == (snake.bSize - 1) / 2 && x == (snake.bSize - 1) / 2)) { // <- це правильно
+			if (!(y == (snake.bSize - 1) / 2 && x == (snake.bSize - 1) / 2)) { 
 
 				COOR bCoord(x, y);
 
@@ -359,16 +341,15 @@ int getMaxConnections(MAP map, SNAKE snake) {
 
 				if (type != -1) {
 
-					n = setValue(n, bCoord, type + 1);
+					
 
 					//printCoord(bCoord);
 					//printCoord(convertSnakeToMap(map, snake, bCoord));
 					//sum = addArrays(sum, snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
 					//printArray(snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
 
-					for (int i = 0; i < snake.bNOfConnections; i++) {
-						cSum[i] += snake.brain.data[bCoord.x][bCoord.y].connections[type][i];
-					}
+					cSum = addArrays(cSum, snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
+
 
 
 				}
@@ -406,7 +387,9 @@ int bData[2][11][11][4] = { {
 } };
 
 BRAIN createBrain(int data[DefNOfTypes][vDistance * 2 + 1][vDistance * 2 + 1][DefNOfConnections]) {
-	BRAIN brain(vDistance * 2 + 1, DefNOfTypes, DefNOfConnections);
+	BRAIN brain;
+
+	brain.init(vDistance * 2 + 1, DefNOfTypes, DefNOfConnections);
 
 	for (int i = 0; i < brain.size; i++) {
 		for (int j = 0; j < brain.size; j++) {
@@ -421,19 +404,63 @@ BRAIN createBrain(int data[DefNOfTypes][vDistance * 2 + 1][vDistance * 2 + 1][De
 	return brain;
 }
 
+COOR convertCoord(int x, int y) {
+	COOR coord(x, y);
+
+	return coord;
+}
+
+SNAKE snakeMove(SNAKE snake, MAP map) {
+	int t = getMaxConnections(map, snake);
+
+	for (int i = snake.sSize + 1; i > 0; i--) {
+		snake.coords[i] = snake.coords[i - 1];
+	}
+
+
+	snake.coords[0] = convertCoord(snake.coords[0].x += dx[t], snake.coords[0].y += dy[t]);
+
+	return snake;
+}
+
+SNAKE checkEat(SNAKE snake, MAP map) {
+	if (getValue(map, snake.coords[0]) == eat) {
+		snake.sSize++;
+		map = createEats(map, 1);
+	}
+
+	return snake;
+}
+
+MAP clearWCoords(MAP map, COOR* coords, int size) {
+	for (int i = 0; i < size; i++) {
+		map = setValue(map, coords[i], empty);
+	}
+
+	return map;
+}
+
+COOR* setCoords(COOR coord, int size) {
+	COOR* coords = new COOR[size];
+
+	for (int i = 0; i < size; i++) {
+		coords[i] = coord;
+	}
+
+	return coords;
+}
+
 int main() {
 
 	randomize();
 
-	MAP map(20);
+	MAP map(15);
 
-	SNAKE snake(vDistance * 2 + 1, DefNOfTypes, DefNOfConnections);
+	SNAKE snake(vDistance * 2 + 1, DefNOfTypes, DefNOfConnections, maxSnakeSize);
 	snake.brain = createBrain(bData);
-	map = createEats(map, 5);
+	map = createEats(map, 1);
 
-	snake.coords[0].x = (map.size - 1) / 2;
-	snake.coords[0].y = (map.size - 1) / 2;
-
+	snake.coords = setCoords(convertCoord((map.size - 1) / 2, (map.size - 1) / 2), maxSnakeSize);
 
 	for (int i = 0; i < map.size; i++) {
 		map.value[0][i] = border;
@@ -446,63 +473,39 @@ int main() {
 
 		system("cls");
 
-		n.clear();
-
-
 		printCoord(snake.coords[0]);
+		cout << "Eat: " << snake.sSize << endl;
+
+		//if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
+		//	cout << "Opps!" << endl;
+		//	break;
+		//}
 
 		if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
 			cout << "Opps!" << endl;
 			break;
 		}
 
-		/*if (snake.coords[0].x == -1) {
-			snake.coords[0].x = map.size - 1;
-		}
-		if (snake.coords[0].x == map.size) {
-			snake.coords[0].x = 0;
-		}
-		if (snake.coords[0].y == map.size) {
-			snake.coords[0].y = 0;
-		}
-		if (snake.coords[0].y == -1) {
-			snake.coords[0].y = map.size - 1;
-		}*/
+		snake = checkEat(snakeMove(snake, map), map);
 
 
+		map = clearWCoords(map, snake.coords, snake.sSize + 1);
 
-		int m = getMaxConnections(map, snake);
-
-		COOR c(vDistance, vDistance);
-		n = setValue(n, c, head);
-
-		//printMap(n);
-
-
-		/*for (int i = 0; i < snake.sSize; i++) {
-
-			map = setValue(map, snake.coords[i], empty);
-
-		}*/
-		map = setValue(map, snake.coords[0], empty);
-		/*for (int i = snake.sSize - 1; i > 0; i--) {
-			snake.coords[i] = snake.coords[i - 1];
-		}*/
-
-		snake.coords[0].x += dx[m];
-		snake.coords[0].y += dy[m];
-
-		if (getValue(map, snake.coords[0]) == eat) {
-			//snake.sSize++;
-			map = createEats(map, 1);
+		if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
+			cout << "Opps!" << endl;
+			break;
 		}
 
-		/*for (int i = 0; i < snake.sSize; i++) {
-			if (i == 0)
-			map = setValue(map, snake.coords[i], head);
-			else map = setValue(map, snake.coords[i], body);
-		}*/
-		map = setValue(map, snake.coords[0], head);
+		for (int i = 0; i < snake.sSize; i++) {
+			if (i == 0) {
+				map = setValue(map, snake.coords[i], head);
+			} else {
+				map = setValue(map, snake.coords[i], body);
+			}
+		}
+		//map = setValue(map, snake.coords[0], head);
+
+		
 
 		printMap(map);
 		
