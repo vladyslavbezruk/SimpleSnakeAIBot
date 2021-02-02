@@ -2,6 +2,26 @@
 #include <cstdlib>
 #include <ctime>	
 #include <windows.h>
+#include <math.h>
+#include <string>
+
+#define defColor 15
+#define Black 0
+#define DarkBlue 1
+#define DarkGreen 2
+#define LightBlue 3
+#define DarkRed 4
+#define Magenta 5
+#define Orange 6
+#define LightGray 7
+#define Gray 8
+#define Blue 9
+#define Green 10
+#define Cyan 11
+#define Red 12
+#define Pink 13
+#define Yellow 14
+#define White 15
 
 #define vDistance 5
 #define maxSnakeSize 100
@@ -13,14 +33,27 @@
 #define head -2
 #define body -3
 #define empty 0
-#define DefCEat 5
-#define cSnakes 4
+#define DefCEat 30
+#define cSnakes 20
+
+#define sTypes 5
+#define tOpts 3
+
+#define stype char
 
 using namespace std;
 
 int DefReactions[DefNOfTypes][reactionsCount] = {
 	{ eat, eat, eat}, // 1 - eat
 	{ border, body, head} // -1 - border, -2 - head, -3 - body
+};
+
+stype converts[sTypes][tOpts] = {
+	{-1, Red, 178},
+	{0, Blue, 176},
+	{1, Green, 253},
+	{-2, Cyan, 1},
+	{-3, DarkGreen, 177}
 };
 
 /*
@@ -35,6 +68,58 @@ x
                         //up, down, left, right
 int dx[DefNOfConnections] = { -1, 1, 0, 0 };
 int dy[DefNOfConnections] = { 0, 0, -1, 1 };
+
+struct SYMBOL {
+	stype color;
+	stype text;
+
+	SYMBOL() {
+		color = defColor;
+	}
+
+	SYMBOL(stype c, stype t) {
+		color = c;
+		text = t;
+	}
+};
+
+struct PICTURE {
+	int width;
+	int height;
+
+	SYMBOL** symbols;
+
+	PICTURE() {
+
+	}
+
+	PICTURE(int h, int w) {
+		width = w;
+		height = h;
+
+		symbols = new SYMBOL * [h];
+
+		for (int i = 0; i < h; i++) {
+			symbols[i] = new SYMBOL[w];
+		}
+	}
+
+	void printPicture() {
+		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+		for (int x = 0; x < height; x++) {
+			for (int y = 0; y < width; y++) {
+				SetConsoleTextAttribute(hConsole, symbols[x][y].color);
+				cout << symbols[x][y].text;
+
+			}
+				cout << endl;
+		}
+
+		SetConsoleTextAttribute(hConsole, defColor);
+	}
+
+};
 
 struct NEURON {
 	int** connections;
@@ -573,7 +658,6 @@ SNAKES checkCollision(SNAKES snakes, MAP map, int mSize) {
 				}
 			}
 		}
-
 		if (snakes.snakes[i].isLife) {
 			if (isThere(DefReactions[1], getValue(map, snakes.snakes[i].coords[0]), reactionsCount - 1)) {
 				snakes.snakes[i] = killSnake(snakes.snakes[i]);
@@ -589,11 +673,46 @@ SNAKES checkCollision(SNAKES snakes, MAP map, int mSize) {
 
 }
 
+void clearDisplay() {
+	system("cls");
+}
+
+int searchIn(stype* arr, int value, int pos, int pSize, int size) {
+	for (int i = 0; i < size; i++) {
+		if (*(arr + i * pSize + pos) == value) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+SYMBOL convertCell(int value) {
+	SYMBOL sym(converts[searchIn(&converts[0][0], value, 0, tOpts, sTypes)][1], converts[searchIn(&converts[0][0], value, 0, tOpts, sTypes)][2]);
+
+	return sym;
+}
+
+PICTURE convertMap(MAP map) {
+	PICTURE picture(map.size, map.size);
+	
+	for (int i = 0; i < picture.height; i++) {
+		for (int j = 0; j < picture.width; j++) {
+			picture.symbols[i][j] = convertCell(getValue(map, convertCoord(i, j)));
+		}
+	}
+
+	return picture;
+}
+
 int main() {
+
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	SetConsoleTextAttribute(hConsole, defColor);
 
 	randomize();
 
-	MAP map(20);
+	MAP map(40);
 
 	SNAKES snakes(cSnakes, vDistance * 2 + 1, DefNOfTypes, DefNOfConnections, maxSnakeSize, map.size);
 
@@ -605,7 +724,7 @@ int main() {
 
 	while (true) {
 
-		system("cls");
+		clearDisplay();
 
 		//printCoord(snake.coords[0]);
 		//cout << "Eat: " << snake.sSize << endl;
@@ -648,22 +767,23 @@ int main() {
 			map = drawSnake(map, snakes.snakes[i]);
 		}
 
-		
-
-
-
 		map = updateEat(map, DefCEat);
 
 		//map = setValue(map, snake.coords[0], head);
 
 		
 		map = drawBorder(map);
-		printMap(map);
+
+
+		//printMap(map);
+
+		convertMap(map).printPicture();
+
 		
 		//int a = 0;
 		//cin >> a;
 
-		Sleep(100);
+		Sleep(1000/30);
 	}
 	printMap(map);
 }
