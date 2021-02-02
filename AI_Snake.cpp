@@ -13,12 +13,14 @@
 #define head -2
 #define body -3
 #define empty 0
+#define DefCEat 5
+#define cSnakes 4
 
 using namespace std;
 
 int DefReactions[DefNOfTypes][reactionsCount] = {
 	{ eat, eat, eat}, // 1 - eat
-	{ border, body, border} // -1 - border, -2 - head, -3 - body
+	{ border, body, head} // -1 - border, -2 - head, -3 - body
 };
 
 /*
@@ -111,9 +113,12 @@ struct BRAIN {
 struct MAP {
 	int** value;
 	int size;
+	int cEat;
 
 	MAP(int _size) {
 		size = _size;
+
+		cEat = 0;
 
 		value = new int* [size];
 
@@ -142,11 +147,18 @@ struct SNAKE {
 	int bNOfConnections;
 	int sSize;
 	int mSize;
+	bool isLife;
 	COOR* coords;
 
-	SNAKE(int _bSize, int _nOfTypes, int _nOfConnections, int _mSize) {
+	SNAKE() {
+
+	}
+
+	void init(int _bSize, int _nOfTypes, int _nOfConnections, int _mSize) {
 		mSize = _mSize;
 		sSize = 1;
+
+		isLife = true;
 
 		coords = new COOR[mSize];
 
@@ -203,6 +215,8 @@ MAP createEats(MAP map, int count) {
 		setValue(map, eatCoord, eat);
 	}
 
+	map.cEat += count;
+
 	return map;
 }
 
@@ -238,6 +252,23 @@ COOR convertSnakeToMap(MAP map, SNAKE snake, COOR coord) {
 bool isThere(int* arr, int n, int size) {
 	for (int i = 0; i < size; i++) {
 		if (arr[i] == n) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool isEqualCoords(COOR a, COOR b) {
+	if (a.x == b.x && a.y == b.y) {
+		return true;
+	}
+
+	return false;
+}
+
+bool isThereCoord(COOR* coords, COOR coord, int size) {
+	for (int i = 0; i < size; i++) {
+		if (isEqualCoords(coord, coords[i])) {
 			return true;
 		}
 	}
@@ -423,21 +454,13 @@ SNAKE snakeMove(SNAKE snake, MAP map) {
 	return snake;
 }
 
-SNAKE checkEat(SNAKE snake, MAP map) {
-	if (getValue(map, snake.coords[0]) == eat) {
+SNAKE checkEat(SNAKE snake, MAP* map) {
+	if (getValue(*map, snake.coords[0]) == eat) {
 		snake.sSize++;
-		map = createEats(map, 1);
+		(*map).cEat--;
 	}
 
 	return snake;
-}
-
-MAP clearWCoords(MAP map, COOR* coords, int size) {
-	for (int i = 0; i < size; i++) {
-		map = setValue(map, coords[i], empty);
-	}
-
-	return map;
 }
 
 COOR* setCoords(COOR coord, int size) {
@@ -450,18 +473,46 @@ COOR* setCoords(COOR coord, int size) {
 	return coords;
 }
 
-int main() {
+MAP drawSnake(MAP map, SNAKE snake) {
+	for (int i = 0; i < snake.sSize; i++) {
+		if (isCoordBetween(snake.coords[i], 0, map.size - 1)) {
+			if (!i) {
+				map = setValue(map, snake.coords[i], head);
+			}
+			else {
+				map = setValue(map, snake.coords[i], body);
+			}
+		}
+	}
 
-	randomize();
+	return map;
+}
 
-	MAP map(15);
+MAP clearMapCoords(MAP map, COOR* coords, int size) {
+	for (int i = 0; i < size; i++) {
+		if (isCoordBetween(coords[i], 0, map.size - 1)) {
+			map = setValue(map, coords[i], empty);
+		}
+	}
 
-	SNAKE snake(vDistance * 2 + 1, DefNOfTypes, DefNOfConnections, maxSnakeSize);
-	snake.brain = createBrain(bData);
-	map = createEats(map, 1);
+	return map;
+}
 
-	snake.coords = setCoords(convertCoord((map.size - 1) / 2, (map.size - 1) / 2), maxSnakeSize);
+MAP updateEat(MAP map, int cEat) {
+	if (map.cEat < cEat) {
+		map = createEats(map, cEat - map.cEat);
+	}
 
+	return map;
+}
+
+SNAKE killSnake(SNAKE snake) {
+	snake.isLife = false;
+
+	return snake;
+}
+
+MAP drawBorder(MAP map) {
 	for (int i = 0; i < map.size; i++) {
 		map.value[0][i] = border;
 		map.value[map.size - 1][i] = border;
@@ -469,44 +520,144 @@ int main() {
 		map.value[i][map.size - 1] = border;
 	}
 
+	return map;
+}
+
+bool isBorder(COOR coord, int mSize) {
+	if (coord.x <= 0 || coord.x >= mSize - 1 || coord.y <= 0 || coord.y >= mSize - 1) {
+		return true;
+	}
+	return false;
+}
+
+struct SNAKES {
+	SNAKE* snakes;
+	int count;
+
+	SNAKES(int _count, int _bSize, int _nOfTypes, int _nOfConnections, int _mSize, int mapSize) {
+		count = _count;
+
+		snakes = new SNAKE[count];
+
+		for (int i = 0; i < count; i++) {
+			snakes[i].init(_bSize, _nOfTypes, _nOfConnections, _mSize);
+		}
+
+		MAP map(mapSize);
+
+		for (int i = 0; i < count; i++) {
+
+			do {
+				snakes[i].coords[0] = getRandomCoord(0, mapSize - 1);
+
+			} while (isBorder(snakes[i].coords[0], mapSize) || getValue(map, snakes[i].coords[0]) != empty);
+
+
+		}
+
+	}
+
+};
+
+SNAKES checkCollision(SNAKES snakes, MAP map, int mSize) {
+	for (int i = 0; i < snakes.count; i++) {
+		for (int j = i + 1; j < snakes.count; j++) {
+			if (snakes.snakes[i].isLife && snakes.snakes[j].isLife) {
+
+				if (isThereCoord(snakes.snakes[i].coords, snakes.snakes[j].coords[0], snakes.snakes[i].sSize)) {
+					snakes.snakes[j] = killSnake(snakes.snakes[j]);
+				}
+
+				if (isThereCoord(snakes.snakes[j].coords, snakes.snakes[i].coords[0], snakes.snakes[j].sSize)) {
+					snakes.snakes[i] = killSnake(snakes.snakes[i]);
+				}
+			}
+		}
+
+		if (snakes.snakes[i].isLife) {
+			if (isThere(DefReactions[1], getValue(map, snakes.snakes[i].coords[0]), reactionsCount - 1)) {
+				snakes.snakes[i] = killSnake(snakes.snakes[i]);
+			}
+
+			if (isBorder(snakes.snakes[i].coords[0], mSize)) {
+				snakes.snakes[i] = killSnake(snakes.snakes[i]);
+			}
+		}
+	}
+
+	return snakes;
+
+}
+
+int main() {
+
+	randomize();
+
+	MAP map(20);
+
+	SNAKES snakes(cSnakes, vDistance * 2 + 1, DefNOfTypes, DefNOfConnections, maxSnakeSize, map.size);
+
+	for (int i = 0; i < cSnakes; i++) {
+		snakes.snakes[i].brain = createBrain(bData);
+	}
+
+	map = drawBorder(map);
+
 	while (true) {
 
 		system("cls");
 
-		printCoord(snake.coords[0]);
-		cout << "Eat: " << snake.sSize << endl;
+		//printCoord(snake.coords[0]);
+		//cout << "Eat: " << snake.sSize << endl;
 
 		//if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
 		//	cout << "Opps!" << endl;
 		//	break;
 		//}
 
-		if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
+		/*
+		if (getValue(map, snake1.coords[0]) == border || getValue(map, snake1.coords[0]) == body) {
+			//snake,
 			cout << "Opps!" << endl;
 			break;
 		}
 
-		snake = checkEat(snakeMove(snake, map), map);
-
-
-		map = clearWCoords(map, snake.coords, snake.sSize + 1);
-
-		if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
+		if (getValue(map, snake2.coords[0]) == border || getValue(map, snake2.coords[0]) == body) {
 			cout << "Opps!" << endl;
 			break;
 		}
+		*/
+	
+		snakes = checkCollision(snakes, map, map.size);
 
-		for (int i = 0; i < snake.sSize; i++) {
-			if (i == 0) {
-				map = setValue(map, snake.coords[i], head);
-			} else {
-				map = setValue(map, snake.coords[i], body);
+		for (int i = 0; i < cSnakes; i++) {
+			if (snakes.snakes[i].isLife) {
+				snakes.snakes[i] = checkEat(snakeMove(snakes.snakes[i], map), &map);
 			}
 		}
-		//map = setValue(map, snake.coords[0], head);
+
+		for (int i = 0; i < cSnakes; i++) {
+			map = clearMapCoords(map, snakes.snakes[i].coords, snakes.snakes[i].sSize + 1);
+		}
+
+		snakes = checkCollision(snakes, map, map.size);
+
+
+		for (int i = 0; i < cSnakes; i++) {
+			if (snakes.snakes[i].isLife)
+			map = drawSnake(map, snakes.snakes[i]);
+		}
 
 		
 
+
+
+		map = updateEat(map, DefCEat);
+
+		//map = setValue(map, snake.coords[0], head);
+
+		
+		map = drawBorder(map);
 		printMap(map);
 		
 		//int a = 0;
