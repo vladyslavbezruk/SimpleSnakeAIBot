@@ -23,6 +23,8 @@
 #define Yellow 14
 #define White 15
 
+#define timeSleep 10
+#define DefMapSize 50
 #define vDistance 5
 #define maxSnakeSize 100
 #define DefNOfTypes 2
@@ -33,7 +35,7 @@
 #define head -2
 #define body -3
 #define empty 0
-#define DefCEat 30
+#define DefCEat 40
 #define cSnakes 20
 
 #define sTypes 5
@@ -48,12 +50,22 @@ int DefReactions[DefNOfTypes][reactionsCount] = {
 	{ border, body, head} // -1 - border, -2 - head, -3 - body
 };
 
+/*
 stype converts[sTypes][tOpts] = {
 	{-1, Red, 178},
 	{0, Blue, 176},
 	{1, Green, 253},
 	{-2, Cyan, 1},
 	{-3, DarkGreen, 177}
+};
+*/
+
+stype converts[sTypes][tOpts] = {
+	{-1, Red, '#'},
+	{0, White, 255},
+	{1, Yellow, 249},
+	{-2, Cyan, 64},
+	{-3, Green, 178}
 };
 
 /*
@@ -64,7 +76,6 @@ stype converts[sTypes][tOpts] = {
 |
 x
 */
-
                         //up, down, left, right
 int dx[DefNOfConnections] = { -1, 1, 0, 0 };
 int dy[DefNOfConnections] = { 0, 0, -1, 1 };
@@ -456,18 +467,7 @@ int getMaxConnections(MAP map, SNAKE snake) {
 				int type = checkNeuronActivation(map, snake, bCoord);
 
 				if (type != -1) {
-
-					
-
-					//printCoord(bCoord);
-					//printCoord(convertSnakeToMap(map, snake, bCoord));
-					//sum = addArrays(sum, snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
-					//printArray(snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
-
 					cSum = addArrays(cSum, snake.brain.data[bCoord.x][bCoord.y].connections[type], snake.bNOfConnections);
-
-
-
 				}
 			}
 		}
@@ -712,7 +712,7 @@ int main() {
 
 	randomize();
 
-	MAP map(40);
+	MAP map(DefMapSize);
 
 	SNAKES snakes(cSnakes, vDistance * 2 + 1, DefNOfTypes, DefNOfConnections, maxSnakeSize, map.size);
 
@@ -725,27 +725,6 @@ int main() {
 	while (true) {
 
 		clearDisplay();
-
-		//printCoord(snake.coords[0]);
-		//cout << "Eat: " << snake.sSize << endl;
-
-		//if (getValue(map, snake.coords[0]) == border || getValue(map, snake.coords[0]) == body) {
-		//	cout << "Opps!" << endl;
-		//	break;
-		//}
-
-		/*
-		if (getValue(map, snake1.coords[0]) == border || getValue(map, snake1.coords[0]) == body) {
-			//snake,
-			cout << "Opps!" << endl;
-			break;
-		}
-
-		if (getValue(map, snake2.coords[0]) == border || getValue(map, snake2.coords[0]) == body) {
-			cout << "Opps!" << endl;
-			break;
-		}
-		*/
 	
 		snakes = checkCollision(snakes, map, map.size);
 
@@ -769,21 +748,14 @@ int main() {
 
 		map = updateEat(map, DefCEat);
 
-		//map = setValue(map, snake.coords[0], head);
-
-		
 		map = drawBorder(map);
-
-
-		//printMap(map);
 
 		convertMap(map).printPicture();
 
-		
-		//int a = 0;
-		//cin >> a;
-
-		Sleep(1000/30);
+		Sleep(timeSleep);
 	}
+
 	printMap(map);
+
+	return 0;
 }
